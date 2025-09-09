@@ -1,55 +1,45 @@
-import express from "express"
-import { ApolloServer } from "@apollo/server"
-import { expressMiddleware } from "@as-integrations/express5"
-import mongoose, { Query } from "mongoose";
-import dotenv from "dotenv"
-import cors from "cors"
+import express from "express";
+import dotenv from "dotenv";
+import mongoose from "mongoose";
+//import cors from 'cors';
+import { ApolloServer } from "@apollo/server";
+import { expressMiddleware } from "@as-integrations/express5";
+import { typeDefs, resolvers } from "./graphql/schema.js";
+import { authMiddleware } from "./Middleware/auth.js";
 
-
-//Load env variables
 dotenv.config();
-
 const app = express();
+app.use(express.json());
 
-//MongoDB connection
-mongoose.connect(process.env.MONGO_URI)
-.then(()=>console.log("MongoDB connected"))
-.catch(err=>console.error("MongoDB error:",err));
-
-//Apollo GraphQL setup
-const typeDefs =  `
-type Query {
-  hello: String
-
-}
-`;
-
-const resolvers = {
-    Query: {
-        hello: () => "Hello Banking App Backend",
-    },
-};
 const server = new ApolloServer({
-    typeDefs,
-    resolvers,
+  typeDefs,
+  resolvers,
 });
 
-const startServer = async() => {
-    //start the Apollo Server
-    await server.start();
+const startServer = async () => {
+  await server.start();
 
-    //Use expressMiddleware to integrate Apollo Server
-    app.use(
-        '/graphql', //This is the path for your GraphQL
-        cors(),
-        express.json(),
-        expressMiddleware(server)
-    )
-    //start express server
-    const PORT = process.env.PORT || 4000
-    app.listen(PORT, ()=>{
-        console.log(`Server ready at http://localhost:${PORT}/graphql`);
+  app.use(
+    "/graphql",
+    expressMiddleware(server, {
+      context: async ({ req, res }) => {
+        authMiddleware(req, res, () => {});
+        return { user: req.user };
+      },
+    })
+  );
 
+  mongoose
+    .connect(process.env.MONGO_URI)
+    .then(() => {
+      console.log("Connected to MongoDB");
+      const PORT = process.env.PORT || 4000;
+      app.listen(PORT, () => {
+        console.log(`Server is running on http://localhost:${PORT}/graphql `);
+      });
+    })
+    .catch((err) => {
+      console.error("Error connecting to MongoDB", err);
     });
 
 };
