@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import accountRoutes from "./routes/accountRoutes.js"
 //import cors from 'cors';
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@as-integrations/express5";
@@ -18,7 +19,7 @@ const server = new ApolloServer({
 
 const startServer = async () => {
   await server.start();
-
+  app.use("/api/accounts", accountRoutes);
   app.use(
     "/graphql",
     expressMiddleware(server, {
